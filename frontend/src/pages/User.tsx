@@ -1,4 +1,5 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
+import API from 'api';
 import Button from 'components/Button';
 import DataTable from 'components/DataTable';
 import Modal from 'components/Modal';
@@ -27,29 +28,7 @@ interface UserProps {
 
 const User: FC = () => {
   const cols: string[] = ['No', 'Name', 'Email', 'Gender', 'Birthday', 'Action'];
-  const [rows, setRows] = useState<UserProps[]>([
-    {
-      id: 1,
-      name: "Full Name 1",
-      email: 'Email 1',
-      gender: "Male",
-      birthday: "2000-02-12"
-    },
-    {
-      id: 2,
-      name: "Full Name 2",
-      email: 'Email 2',
-      gender: "Male",
-      birthday: "2000-02-12"
-    },
-    {
-      id: 3,
-      name: "Full Name 3",
-      email: 'Email 3',
-      gender: "Male",
-      birthday: "2000-02-12"
-    },
-  ]);
+  const [rows, setRows] = useState<UserProps[]>([]);
 
   const [selectedRowId, setSelectedRowId] = useState<any>(null);
   const [form, setForm] = useState<formProps>({
@@ -80,19 +59,24 @@ const User: FC = () => {
     const clonedRows = [...rows];
     let index: number = 0;
     if (!selectedRowId) {
-      clonedRows.push({
-        id: Math.random(),
-        ...form
+      API.post('/users', form).then(res => {
+        clonedRows.push({
+          id: res.data.id,
+          ...form
+        });
+        setRows([...clonedRows]);
       });
     } else {
-      clonedRows.map((row: UserProps, i: number) => {
-        if (row.id === selectedRowId) {
-          index = i
-        }
-      });
-      clonedRows.splice(index, 1, { ...clonedRows[index], ...form });
+      API.patch('/users', { id: selectedRowId, ...form }).then(() => {
+        clonedRows.map((row: UserProps, i: number) => {
+          if (row.id === selectedRowId) {
+            index = i
+          }
+        });
+        clonedRows.splice(index, 1, { ...clonedRows[index], ...form });
+        setRows([...clonedRows]);
+      })
     }
-    setRows([...clonedRows]);
     handleCancel();
   }
 
@@ -108,21 +92,35 @@ const User: FC = () => {
   }
 
   const handleUpdate = (id: any) => {
+    const selectedUser = rows.filter((row: UserProps) => row.id === id)[0];
     setSelectedRowId(id);
+    setForm({
+      name: selectedUser.name,
+      email: selectedUser.email,
+      gender: selectedUser.gender,
+      birthday: selectedUser.birthday
+    });
     handleToggleOpenFormModal();
   }
 
   const handleDelete = () => {
-    let index: number = 0;
-    const clonedRows = [...rows];
-    clonedRows.map((row: UserProps, i: number) => {
-      if (row.id === selectedRowId) {
-        index = i
-      }
-    });
-    clonedRows.splice(index, 1);
-    setRows([...clonedRows]);
-    handleToggleOpenDeleteModal();
+    API.delete(`/users/${selectedRowId}`).then(() => {
+      let index: number = 0;
+      const clonedRows = [...rows];
+      clonedRows.map((row: UserProps, i: number) => {
+        if (row.id === selectedRowId) {
+          index = i
+        }
+      });
+      clonedRows.splice(index, 1);
+      setRows([...clonedRows]);
+      handleToggleOpenDeleteModal();
+    })
+  }
+
+  const getGenderLabel = (id: string | number) => {
+    const filteredOptions = genderOptions.filter((option: optionProps) => option.id === id);
+    return filteredOptions.length > 0 ? filteredOptions[0].label : "";
   }
 
   const renderRow = (row: any, i: number) => {
@@ -130,7 +128,9 @@ const User: FC = () => {
       <td className='text-center'>{i + 1}</td>
       <td className='text-center'>{row.name}</td>
       <td className='text-center'>{row.email}</td>
-      <td className='text-center'>{row.gender}</td>
+      <td className='text-center'>
+        {getGenderLabel(row.gender)}
+      </td>
       <td className='text-center'>{row.birthday}</td>
       <td className='w-40'>
         <div className='flex justify-center gap-1'>
@@ -151,6 +151,12 @@ const User: FC = () => {
       </td>
     </tr>
   }
+
+  useEffect(() => {
+    API.get('/users').then((res: any) => {
+      setRows([...res.data.rows]);
+    })
+  }, [])
 
   return <div>
     <div className='flex justify-end mb-5'>
