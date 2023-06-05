@@ -20,6 +20,10 @@ const DataTable: FC<Props> = ({ cols, rows, renderRow }) => {
             {renderRow(row, i)}
           </Fragment>)
         }
+        {rows.length === 0 &&
+          <tr>
+            <td colSpan={cols.length} className='text-center'>No records</td>
+          </tr>}
       </tbody>
     </table>
   </div>
